@@ -1,5 +1,5 @@
 //
-//  AnimatedZoomViewJob.swift
+//  AnimatedZoomChartViewJob.swift
 //  Charts
 //
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
@@ -12,10 +12,10 @@
 import Foundation
 import CoreGraphics
 
-open class AnimatedZoomViewJob: AnimatedViewPortJob
+open class AnimatedZoomChartViewJob: AnimatedViewPortJob
 {
-    internal var yAxis: YAxis?
-    internal var xAxisRange: Double = 0.0
+    internal var yAxis: ChartYAxis?
+    internal var xValCount: Int = 0
     internal var scaleX: CGFloat = 0.0
     internal var scaleY: CGFloat = 0.0
     internal var zoomOriginX: CGFloat = 0.0
@@ -24,11 +24,11 @@ open class AnimatedZoomViewJob: AnimatedViewPortJob
     internal var zoomCenterY: CGFloat = 0.0
 
     public init(
-        viewPortHandler: ViewPortHandler,
-        transformer: Transformer,
+        viewPortHandler: ChartViewPortHandler,
+        transformer: ChartTransformer,
         view: ChartViewBase,
-        yAxis: YAxis,
-        xAxisRange: Double,
+        yAxis: ChartYAxis,
+        xValCount: Int,
         scaleX: CGFloat,
         scaleY: CGFloat,
         xOrigin: CGFloat,
@@ -41,7 +41,7 @@ open class AnimatedZoomViewJob: AnimatedViewPortJob
         easing: ChartEasingFunctionBlock?)
     {
         super.init(viewPortHandler: viewPortHandler,
-            xValue: 0.0,
+            xIndex: 0.0,
             yValue: 0.0,
             transformer: transformer,
             view: view,
@@ -51,7 +51,7 @@ open class AnimatedZoomViewJob: AnimatedViewPortJob
             easing: easing)
         
         self.yAxis = yAxis
-        self.xAxisRange = xAxisRange
+        self.xValCount = xValCount
         self.scaleX = scaleX
         self.scaleY = scaleY
         self.zoomCenterX = zoomCenterX
@@ -62,30 +62,28 @@ open class AnimatedZoomViewJob: AnimatedViewPortJob
     
     internal override func animationUpdate()
     {
-        guard
-            let viewPortHandler = viewPortHandler,
-            let transformer = transformer,
-            let view = view
-            else { return }
+        guard let viewPortHandler = viewPortHandler,
+              let transformer = transformer,
+              let view = view
+        else { return }
         
         let scaleX = xOrigin + (self.scaleX - xOrigin) * phase
         let scaleY = yOrigin + (self.scaleY - yOrigin) * phase
         
         var matrix = viewPortHandler.setZoom(scaleX: scaleX, scaleY: scaleY)
-        let _ = viewPortHandler.refresh(newMatrix: matrix, chart: view, invalidate: false)
+        viewPortHandler.refresh(newMatrix: matrix, chart: view, invalidate: false)
         
         let valsInView = CGFloat(yAxis?.axisRange ?? 0.0) / viewPortHandler.scaleY
-        let xsInView = CGFloat(xAxisRange) / viewPortHandler.scaleX
+        let xsInView = CGFloat(xValCount) / viewPortHandler.scaleX
         
-        var pt = CGPoint(
-            x: zoomOriginX + ((zoomCenterX - xsInView / 2.0) - zoomOriginX) * phase,
-            y: zoomOriginY + ((zoomCenterY + valsInView / 2.0) - zoomOriginY) * phase
-        )
+        let x = zoomOriginX + ((zoomCenterX - xsInView / 2.0) - zoomOriginX) * phase
+        let y = zoomOriginY + ((zoomCenterY + valsInView / 2.0) - zoomOriginY) * phase
+        var pt = CGPoint(x: x, y: y)
         
         transformer.pointValueToPixel(&pt)
         
         matrix = viewPortHandler.translate(pt: pt)
-        let _ = viewPortHandler.refresh(newMatrix: matrix, chart: view, invalidate: true)
+        viewPortHandler.refresh(newMatrix: matrix, chart: view, invalidate: true)
     }
     
     internal override func animationEnd()

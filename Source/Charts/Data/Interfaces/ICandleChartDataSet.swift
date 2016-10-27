@@ -2,6 +2,8 @@
 //  ICandleChartDataSet.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 26/2/15.
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -40,9 +42,6 @@ public protocol ICandleChartDataSet: ILineScatterCandleRadarChartDataSet
     /// use candle color for the shadow
     var shadowColorSameAsCandle: Bool { get set }
     
-    /// Is the shadow color same as the candle color?
-    var isShadowColorSameAsCandle: Bool { get }
-    
     /// color for open == close
     var neutralColor: NSUIColor? { get set }
     
@@ -55,12 +54,6 @@ public protocol ICandleChartDataSet: ILineScatterCandleRadarChartDataSet
     /// Are increasing values drawn as filled?
     var increasingFilled: Bool { get set }
     
-    /// Are increasing values drawn as filled?
-    var isIncreasingFilled: Bool { get }
-    
     /// Are decreasing values drawn as filled?
     var decreasingFilled: Bool { get set }
-    
-    /// Are decreasing values drawn as filled?
-    var isDecreasingFilled: Bool { get }
 }

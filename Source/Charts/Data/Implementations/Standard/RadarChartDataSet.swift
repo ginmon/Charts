@@ -2,6 +2,9 @@
 //  RadarChartDataSet.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 24/2/15.
+
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -15,7 +18,7 @@ import CoreGraphics
 
 open class RadarChartDataSet: LineRadarChartDataSet, IRadarChartDataSet
 {
-    fileprivate func initialize()
+    private func initialize()
     {
         self.valueFont = NSUIFont.systemFont(ofSize: 13.0)
     }
@@ -26,9 +29,9 @@ open class RadarChartDataSet: LineRadarChartDataSet, IRadarChartDataSet
         initialize()
     }
     
-    public required override init(values: [ChartDataEntry]?, label: String?)
+    public override init(yVals: [ChartDataEntry]?, label: String?)
     {
-        super.init(values: values, label: label)
+        super.init(yVals: yVals, label: label)
         initialize()
     }
     
@@ -39,9 +42,6 @@ open class RadarChartDataSet: LineRadarChartDataSet, IRadarChartDataSet
     /// flag indicating whether highlight circle should be drawn or not
     /// **default**: false
     open var drawHighlightCircleEnabled: Bool = false
-    
-    /// - returns: `true` if highlight circle should be drawn, `false` ifnot
-    open var isDrawHighlightCircleEnabled: Bool { return drawHighlightCircleEnabled }
     
     open var highlightCircleFillColor: NSUIColor? = NSUIColor.white
     

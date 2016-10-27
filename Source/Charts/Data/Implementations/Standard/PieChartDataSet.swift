@@ -2,6 +2,9 @@
 //  PieChartDataSet.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 24/2/15.
+
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -21,7 +24,7 @@ open class PieChartDataSet: ChartDataSet, IPieChartDataSet
         case outsideSlice
     }
     
-    fileprivate func initialize()
+    private func initialize()
     {
         self.valueTextColor = NSUIColor.white
         self.valueFont = NSUIFont.systemFont(ofSize: 13.0)
@@ -33,20 +36,15 @@ open class PieChartDataSet: ChartDataSet, IPieChartDataSet
         initialize()
     }
     
-    public override init(values: [ChartDataEntry]?, label: String?)
+    public override init(yVals: [ChartDataEntry]?, label: String?)
     {
-        super.init(values: values, label: label)
+        super.init(yVals: yVals, label: label)
         initialize()
-    }
-    
-    internal override func calcMinMax(entry e: ChartDataEntry)
-    {
-        calcMinMaxY(entry: e)
     }
     
     // MARK: - Styling functions and accessors
     
-    fileprivate var _sliceSpace = CGFloat(0.0)
+    private var _sliceSpace = CGFloat(0.0)
     
     /// the space in pixels between the pie-slices
     /// **default**: 0
@@ -60,11 +58,11 @@ open class PieChartDataSet: ChartDataSet, IPieChartDataSet
         set
         {
             var space = newValue
-            if space > 20.0
+            if (space > 20.0)
             {
                 space = 20.0
             }
-            if space < 0.0
+            if (space < 0.0)
             {
                 space = 0.0
             }
@@ -96,15 +94,9 @@ open class PieChartDataSet: ChartDataSet, IPieChartDataSet
     /// When valuePosition is OutsideSlice, this allows variable line length
     open var valueLineVariableLength: Bool = true
     
-    /// the font for the slice-text labels
-    open var entryLabelFont: NSUIFont? = nil
-    
-    /// the color for the slice-text labels
-    open var entryLabelColor: NSUIColor? = nil
-    
     // MARK: - NSCopying
     
-    open override func copyWithZone(_ zone: NSZone?) -> AnyObject
+    open override func copyWithZone(_ zone: NSZone?) -> Any
     {
         let copy = super.copyWithZone(zone) as! PieChartDataSet
         copy._sliceSpace = _sliceSpace

@@ -2,6 +2,8 @@
 //  CombinedChartRenderer.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 4/3/15.
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -12,21 +14,24 @@
 import Foundation
 import CoreGraphics
 
-open class CombinedChartRenderer: DataRenderer
+open class CombinedChartRenderer: ChartDataRendererBase
 {
     open weak var chart: CombinedChartView?
+    
+    /// flag that enables or disables the highlighting arrow
+    open var drawHighlightArrowEnabled = false
     
     /// if set to true, all values are drawn above their bars, instead of below their top
     open var drawValueAboveBarEnabled = true
     
     /// if set to true, a grey area is drawn behind each bar that indicates the maximum value
-    open var drawBarShadowEnabled = false
+    open var drawBarShadowEnabled = true
     
-    internal var _renderers = [DataRenderer]()
+    internal var _renderers = [ChartDataRendererBase]()
     
     internal var _drawOrder: [CombinedChartView.DrawOrder] = [.bar, .bubble, .line, .candle, .scatter]
     
-    public init(chart: CombinedChartView?, animator: Animator, viewPortHandler: ViewPortHandler?)
+    public init(chart: CombinedChartView, animator: ChartAnimator, viewPortHandler: ChartViewPortHandler)
     {
         super.init(animator: animator, viewPortHandler: viewPortHandler)
         
@@ -38,48 +43,46 @@ open class CombinedChartRenderer: DataRenderer
     /// Creates the renderers needed for this combined-renderer in the required order. Also takes the DrawOrder into consideration.
     internal func createRenderers()
     {
-        _renderers = [DataRenderer]()
+        _renderers = [ChartDataRendererBase]()
         
-        guard let
-            chart = chart,
-            let animator = animator,
-            let viewPortHandler = self.viewPortHandler
-            else { return }
+        guard let chart = chart,
+              let animator = animator
+        else { return }
 
         for order in drawOrder
         {
             switch (order)
             {
             case .bar:
-                if chart.barData !== nil
+                if (chart.barData !== nil)
                 {
                     _renderers.append(BarChartRenderer(dataProvider: chart, animator: animator, viewPortHandler: viewPortHandler))
                 }
                 break
                 
             case .line:
-                if chart.lineData !== nil
+                if (chart.lineData !== nil)
                 {
                     _renderers.append(LineChartRenderer(dataProvider: chart, animator: animator, viewPortHandler: viewPortHandler))
                 }
                 break
                 
             case .candle:
-                if chart.candleData !== nil
+                if (chart.candleData !== nil)
                 {
                     _renderers.append(CandleStickChartRenderer(dataProvider: chart, animator: animator, viewPortHandler: viewPortHandler))
                 }
                 break
                 
             case .scatter:
-                if chart.scatterData !== nil
+                if (chart.scatterData !== nil)
                 {
                     _renderers.append(ScatterChartRenderer(dataProvider: chart, animator: animator, viewPortHandler: viewPortHandler))
                 }
                 break
                 
             case .bubble:
-                if chart.bubbleData !== nil
+                if (chart.bubbleData !== nil)
                 {
                     _renderers.append(BubbleChartRenderer(dataProvider: chart, animator: animator, viewPortHandler: viewPortHandler))
                 }
@@ -87,14 +90,6 @@ open class CombinedChartRenderer: DataRenderer
             }
         }
 
-    }
-    
-    open override func initBuffers()
-    {
-        for renderer in _renderers
-        {
-            renderer.initBuffers()
-        }
     }
     
     open override func drawData(context: CGContext)
@@ -121,7 +116,7 @@ open class CombinedChartRenderer: DataRenderer
         }
     }
     
-    open override func drawHighlighted(context: CGContext, indices: [Highlight])
+    open override func drawHighlighted(context: CGContext, indices: [ChartHighlight])
     {
         for renderer in _renderers
         {
@@ -155,11 +150,19 @@ open class CombinedChartRenderer: DataRenderer
             renderer.drawHighlighted(context: context, indices: dataIndices)
         }
     }
-
-    /// - returns: The sub-renderer object at the specified index.
-    open func getSubRenderer(index: Int) -> DataRenderer?
+    
+    open override func calcXBounds(chart: BarLineScatterCandleBubbleChartDataProvider, xAxisModulus: Int)
     {
-        if index >= _renderers.count || index < 0
+        for renderer in _renderers
+        {
+            renderer.calcXBounds(chart: chart, xAxisModulus: xAxisModulus)
+        }
+    }
+
+    /// - returns: the sub-renderer object at the specified index.
+    open func getSubRenderer(index: Int) -> ChartDataRendererBase?
+    {
+        if (index >= _renderers.count || index < 0)
         {
             return nil
         }
@@ -169,20 +172,14 @@ open class CombinedChartRenderer: DataRenderer
         }
     }
 
-    /// - returns: All sub-renderers.
-    open var subRenderers: [DataRenderer]
+    /// Returns all sub-renderers.
+    open var subRenderers: [ChartDataRendererBase]
     {
         get { return _renderers }
         set { _renderers = newValue }
     }
     
     // MARK: Accessors
-    
-    /// - returns: `true` if drawing values above bars is enabled, `false` ifnot
-    open var isDrawValueAboveBarEnabled: Bool { return drawValueAboveBarEnabled }
-    
-    /// - returns: `true` if drawing shadows (maxvalue) for each bar is enabled, `false` ifnot
-    open var isDrawBarShadowEnabled: Bool { return drawBarShadowEnabled }
     
     /// the order in which the provided data objects should be drawn.
     /// The earlier you place them in the provided array, the further they will be in the background.
@@ -195,7 +192,7 @@ open class CombinedChartRenderer: DataRenderer
         }
         set
         {
-            if newValue.count > 0
+            if (newValue.count > 0)
             {
                 _drawOrder = newValue
             }

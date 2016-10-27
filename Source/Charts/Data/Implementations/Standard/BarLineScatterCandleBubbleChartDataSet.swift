@@ -2,6 +2,8 @@
 //  BarLineScatterCandleBubbleChartDataSet.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 26/2/15.
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -26,7 +28,7 @@ open class BarLineScatterCandleBubbleChartDataSet: ChartDataSet, IBarLineScatter
     
     // MARK: - NSCopying
     
-    open override func copyWithZone(_ zone: NSZone?) -> AnyObject
+    open override func copyWithZone(_ zone: NSZone?) -> Any
     {
         let copy = super.copyWithZone(zone) as! BarLineScatterCandleBubbleChartDataSet
         copy.highlightColor = highlightColor

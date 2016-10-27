@@ -2,6 +2,8 @@
 //  IRadarChartDataSet.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 26/2/15.
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -21,8 +23,6 @@ public protocol IRadarChartDataSet: ILineRadarChartDataSet
     
     /// flag indicating whether highlight circle should be drawn or not
     var drawHighlightCircleEnabled: Bool { get set }
-    
-    var isDrawHighlightCircleEnabled: Bool { get }
     
     var highlightCircleFillColor: NSUIColor? { get set }
     

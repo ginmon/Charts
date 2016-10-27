@@ -1,6 +1,8 @@
 //
-//  DataRenderer.swift
+//  ChartDataRendererBase.swift
 //  Charts
+//
+//  Created by Daniel Cohen Gindi on 4/3/15.
 //
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
@@ -12,12 +14,11 @@
 import Foundation
 import CoreGraphics
 
-@objc(ChartDataRendererBase)
-open class DataRenderer: Renderer
+open class ChartDataRendererBase: ChartRendererBase
 {
-    open var animator: Animator?
+    open var animator: ChartAnimator?
     
-    public init(animator: Animator?, viewPortHandler: ViewPortHandler?)
+    public init(animator: ChartAnimator?, viewPortHandler: ChartViewPortHandler)
     {
         super.init(viewPortHandler: viewPortHandler)
         
@@ -26,36 +27,24 @@ open class DataRenderer: Renderer
 
     open func drawData(context: CGContext)
     {
-        fatalError("drawData() cannot be called on DataRenderer")
+        fatalError("drawData() cannot be called on ChartDataRendererBase")
     }
     
     open func drawValues(context: CGContext)
     {
-        fatalError("drawValues() cannot be called on DataRenderer")
+        fatalError("drawValues() cannot be called on ChartDataRendererBase")
     }
     
     open func drawExtras(context: CGContext)
     {
-        fatalError("drawExtras() cannot be called on DataRenderer")
+        fatalError("drawExtras() cannot be called on ChartDataRendererBase")
     }
     
     /// Draws all highlight indicators for the values that are currently highlighted.
     ///
     /// - parameter indices: the highlighted values
-    open func drawHighlighted(context: CGContext, indices: [Highlight])
+    open func drawHighlighted(context: CGContext, indices: [ChartHighlight])
     {
-        fatalError("drawHighlighted() cannot be called on DataRenderer")
-    }
-    
-    /// An opportunity for initializing internal buffers used for rendering with a new size.
-    /// Since this might do memory allocations, it should only be called if necessary.
-    open func initBuffers() { }
-    
-    open func isDrawingValuesAllowed(dataProvider: ChartDataProvider?) -> Bool
-    {
-        guard let data = dataProvider?.data
-            else { return false }
-        
-        return data.entryCount < Int(CGFloat(dataProvider?.maxVisibleCount ?? 0) * (viewPortHandler?.scaleX ?? 1.0))
+        fatalError("drawHighlighted() cannot be called on ChartDataRendererBase")
     }
 }

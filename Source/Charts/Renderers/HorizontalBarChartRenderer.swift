@@ -2,6 +2,8 @@
 //  HorizontalBarChartRenderer.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 4/3/15.
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -19,100 +21,66 @@ import CoreGraphics
 
 open class HorizontalBarChartRenderer: BarChartRenderer
 {
-    fileprivate class Buffer
-    {
-        var rects = [CGRect]()
-    }
-    
-    public override init(dataProvider: BarChartDataProvider?, animator: Animator?, viewPortHandler: ViewPortHandler?)
+    public override init(dataProvider: BarChartDataProvider?, animator: ChartAnimator?, viewPortHandler: ChartViewPortHandler)
     {
         super.init(dataProvider: dataProvider, animator: animator, viewPortHandler: viewPortHandler)
     }
     
-    // [CGRect] per dataset
-    fileprivate var _buffers = [Buffer]()
-    
-    open override func initBuffers()
+    open override func drawDataSet(context: CGContext, dataSet: IBarChartDataSet, index: Int)
     {
-        if let barData = dataProvider?.barData
-        {
-            // Matche buffers count to dataset count
-            if _buffers.count != barData.dataSetCount
-            {
-                while _buffers.count < barData.dataSetCount
-                {
-                    _buffers.append(Buffer())
-                }
-                while _buffers.count > barData.dataSetCount
-                {
-                    _buffers.removeLast()
-                }
-            }
-            
-            for i in stride(from: 0, to: barData.dataSetCount, by: 1)
-            {
-                let set = barData.dataSets[i] as! IBarChartDataSet
-                let size = set.entryCount * (set.isStacked ? set.stackSize : 1)
-                if _buffers[i].rects.count != size
-                {
-                    _buffers[i].rects = [CGRect](repeating: CGRect(), count: size)
-                }
-            }
-        }
-        else
-        {
-            _buffers.removeAll()
-        }
-    }
-    
-    fileprivate func prepareBuffer(dataSet: IBarChartDataSet, index: Int)
-    {
-        guard let
-            dataProvider = dataProvider,
-            let barData = dataProvider.barData,
-            let animator = animator
-            else { return }
+        guard let dataProvider = dataProvider,
+              let barData = dataProvider.barData,
+              let animator = animator
+        else { return }
         
-        let barWidthHalf = barData.barWidth / 2.0
+        context.saveGState()
         
-        let buffer = _buffers[index]
-        var bufferIndex = 0
+        let trans = dataProvider.getTransformer(dataSet.axisDependency)
+        
+        let drawBarShadowEnabled: Bool = dataProvider.drawBarShadowEnabled
+        let dataSetOffset = (barData.dataSetCount - 1)
+        let groupSpace = barData.groupSpace
+        let groupSpaceHalf = groupSpace / 2.0
+        let barSpace = dataSet.barSpace
+        let barSpaceHalf = barSpace / 2.0
         let containsStacks = dataSet.isStacked
-        
-        let isInverted = dataProvider.isInverted(axis: dataSet.axisDependency)
+        let inverted = dataProvider.inverted(dataSet.axisDependency)
+        let barWidth: CGFloat = 0.5
         let phaseY = animator.phaseY
         var barRect = CGRect()
-        var x: Double
+        var barShadow = CGRect()
+        let borderWidth = dataSet.barBorderWidth
+        let borderColor = dataSet.barBorderColor
+        let drawBorder = borderWidth > 0.0
         var y: Double
         
-        for i in stride(from: 0, to: min(Int(ceil(Double(dataSet.entryCount) * animator.phaseX)), dataSet.entryCount), by: 1)
+        // do the drawing
+        for j in 0 ..< Int(ceil(CGFloat(dataSet.entryCount) * animator.phaseX))
         {
-            guard let e = dataSet.entryForIndex(i) as? BarChartDataEntry else { continue }
+            guard let e = dataSet.entryForIndex(j) as? BarChartDataEntry else { continue }
             
-            let vals = e.yValues
+            // calculate the x-position, depending on datasetcount
+            let x = CGFloat(e.xIndex + e.xIndex * dataSetOffset) + CGFloat(index)
+                + groupSpace * CGFloat(e.xIndex) + groupSpaceHalf
+            let values = e.values
             
-            x = e.x
-            y = e.y
-            
-            if !containsStacks || vals == nil
+            if (!containsStacks || values == nil)
             {
-                let bottom = CGFloat(x - barWidthHalf)
-                let top = CGFloat(x + barWidthHalf)
-                var right = isInverted
-                    ? (y <= 0.0 ? CGFloat(y) : 0)
-                    : (y >= 0.0 ? CGFloat(y) : 0)
-                var left = isInverted
-                    ? (y >= 0.0 ? CGFloat(y) : 0)
-                    : (y <= 0.0 ? CGFloat(y) : 0)
+                y = e.value
+                
+                let bottom = x - barWidth + barSpaceHalf
+                let top = x + barWidth - barSpaceHalf
+                var right = inverted ? (y <= 0.0 ? CGFloat(y) : 0) : (y >= 0.0 ? CGFloat(y) : 0)
+                var left = inverted ? (y >= 0.0 ? CGFloat(y) : 0) : (y <= 0.0 ? CGFloat(y) : 0)
                 
                 // multiply the height of the rect with the phase
-                if right > 0
+                if (right > 0)
                 {
-                    right *= CGFloat(phaseY)
+                    right *= phaseY
                 }
                 else
                 {
-                    left *= CGFloat(phaseY)
+                    left *= phaseY
                 }
                 
                 barRect.origin.x = left
@@ -120,19 +88,88 @@ open class HorizontalBarChartRenderer: BarChartRenderer
                 barRect.origin.y = top
                 barRect.size.height = bottom - top
                 
-                buffer.rects[bufferIndex] = barRect
-                bufferIndex += 1
+                trans.rectValueToPixel(&barRect)
+                
+                if (!viewPortHandler.isInBoundsLeft(barRect.origin.x + barRect.size.width))
+                {
+                    continue
+                }
+                
+                if (!viewPortHandler.isInBoundsRight(barRect.origin.x))
+                {
+                    break
+                }
+                
+                // if drawing the bar shadow is enabled
+                if (drawBarShadowEnabled)
+                {
+                    barShadow.origin.x = viewPortHandler.contentLeft
+                    barShadow.origin.y = barRect.origin.y
+                    barShadow.size.width = viewPortHandler.contentWidth
+                    barShadow.size.height = barRect.size.height
+                    
+                    context.setFillColor(dataSet.barShadowColor.cgColor)
+                    context.fill(barShadow)
+                }
+                
+                // Set the color for the currently drawn value. If the index is out of bounds, reuse colors.
+                context.setFillColor(dataSet.colorAt(j).cgColor)
+                context.fill(barRect)
+                
+                if drawBorder
+                {
+                    context.setStrokeColor(borderColor.cgColor)
+                    context.setLineWidth(borderWidth)
+                    context.stroke(barRect)
+                }
             }
             else
             {
+                let vals = values!
                 var posY = 0.0
                 var negY = -e.negativeSum
                 var yStart = 0.0
                 
-                // fill the stack
-                for k in 0 ..< vals!.count
+                // if drawing the bar shadow is enabled
+                if (drawBarShadowEnabled)
                 {
-                    let value = vals![k]
+                    y = e.value
+                    
+                    let bottom = x - barWidth + barSpaceHalf
+                    let top = x + barWidth - barSpaceHalf
+                    var right = inverted ? (y <= 0.0 ? CGFloat(y) : 0) : (y >= 0.0 ? CGFloat(y) : 0)
+                    var left = inverted ? (y >= 0.0 ? CGFloat(y) : 0) : (y <= 0.0 ? CGFloat(y) : 0)
+                    
+                    // multiply the height of the rect with the phase
+                    if (right > 0)
+                    {
+                        right *= phaseY
+                    }
+                    else
+                    {
+                        left *= phaseY
+                    }
+                    
+                    barRect.origin.x = left
+                    barRect.size.width = right - left
+                    barRect.origin.y = top
+                    barRect.size.height = bottom - top
+                    
+                    trans.rectValueToPixel(&barRect)
+                    
+                    barShadow.origin.x = viewPortHandler.contentLeft
+                    barShadow.origin.y = barRect.origin.y
+                    barShadow.size.width = viewPortHandler.contentWidth
+                    barShadow.size.height = barRect.size.height
+                    
+                    context.setFillColor(dataSet.barShadowColor.cgColor)
+                    context.fill(barShadow)
+                }
+                
+                // fill the stack
+                for k in 0 ..< vals.count
+                {
+                    let value = vals[k]
                     
                     if value >= 0.0
                     {
@@ -147,151 +184,73 @@ open class HorizontalBarChartRenderer: BarChartRenderer
                         negY += abs(value)
                     }
                     
-                    let bottom = CGFloat(x - barWidthHalf)
-                    let top = CGFloat(x + barWidthHalf)
-                    var right = isInverted
-                        ? (y <= yStart ? CGFloat(y) : CGFloat(yStart))
-                        : (y >= yStart ? CGFloat(y) : CGFloat(yStart))
-                    var left = isInverted
-                        ? (y >= yStart ? CGFloat(y) : CGFloat(yStart))
-                        : (y <= yStart ? CGFloat(y) : CGFloat(yStart))
+                    let bottom = x - barWidth + barSpaceHalf
+                    let top = x + barWidth - barSpaceHalf
+                    var right: CGFloat, left: CGFloat
+                    if inverted
+                    {
+                        left = y >= yStart ? CGFloat(y) : CGFloat(yStart)
+                        right = y <= yStart ? CGFloat(y) : CGFloat(yStart)
+                    }
+                    else
+                    {
+                        right = y >= yStart ? CGFloat(y) : CGFloat(yStart)
+                        left = y <= yStart ? CGFloat(y) : CGFloat(yStart)
+                    }
                     
                     // multiply the height of the rect with the phase
-                    right *= CGFloat(phaseY)
-                    left *= CGFloat(phaseY)
+                    right *= phaseY
+                    left *= phaseY
                     
                     barRect.origin.x = left
                     barRect.size.width = right - left
                     barRect.origin.y = top
                     barRect.size.height = bottom - top
                     
-                    buffer.rects[bufferIndex] = barRect
-                    bufferIndex += 1
+                    trans.rectValueToPixel(&barRect)
+                    
+                    if (k == 0 && !viewPortHandler.isInBoundsTop(barRect.origin.y + barRect.size.height))
+                    {
+                        // Skip to next bar
+                        break
+                    }
+                    
+                    // avoid drawing outofbounds values
+                    if (!viewPortHandler.isInBoundsBottom(barRect.origin.y))
+                    {
+                        break
+                    }
+                    
+                    // Set the color for the currently drawn value. If the index is out of bounds, reuse colors.
+                    context.setFillColor(dataSet.colorAt(k).cgColor)
+                    context.fill(barRect)
+                    
+                    if drawBorder
+                    {
+                        context.setStrokeColor(borderColor.cgColor)
+                        context.setLineWidth(borderWidth)
+                        context.stroke(barRect)
+                    }
                 }
-            }
-        }
-    }
-    
-    fileprivate var _barShadowRectBuffer: CGRect = CGRect()
-    
-    open override func drawDataSet(context: CGContext, dataSet: IBarChartDataSet, index: Int)
-    {
-        guard let
-            dataProvider = dataProvider,
-            let viewPortHandler = self.viewPortHandler
-            else { return }
-        
-        let trans = dataProvider.getTransformer(forAxis: dataSet.axisDependency)
-        
-        prepareBuffer(dataSet: dataSet, index: index)
-        trans.rectValuesToPixel(&_buffers[index].rects)
-        
-        let borderWidth = dataSet.barBorderWidth
-        let borderColor = dataSet.barBorderColor
-        let drawBorder = borderWidth > 0.0
-        
-        context.saveGState()
-        
-        // draw the bar shadow before the values
-        if dataProvider.isDrawBarShadowEnabled
-        {
-            guard
-                let animator = animator,
-                let barData = dataProvider.barData
-                else { return }
-            
-            let barWidth = barData.barWidth
-            let barWidthHalf = barWidth / 2.0
-            var x: Double = 0.0
-            
-            for i in stride(from: 0, to: min(Int(ceil(Double(dataSet.entryCount) * animator.phaseX)), dataSet.entryCount), by: 1)
-            {
-                guard let e = dataSet.entryForIndex(i) as? BarChartDataEntry else { continue }
-                
-                x = e.x
-                
-                _barShadowRectBuffer.origin.y = CGFloat(x - barWidthHalf)
-                _barShadowRectBuffer.size.height = CGFloat(barWidth)
-                
-                trans.rectValueToPixel(&_barShadowRectBuffer)
-                
-                if !viewPortHandler.isInBoundsTop(_barShadowRectBuffer.origin.y + _barShadowRectBuffer.size.height)
-                {
-                    break
-                }
-                
-                if !viewPortHandler.isInBoundsBottom(_barShadowRectBuffer.origin.y)
-                {
-                    continue
-                }
-                
-                _barShadowRectBuffer.origin.x = viewPortHandler.contentLeft
-                _barShadowRectBuffer.size.width = viewPortHandler.contentWidth
-                
-                context.setFillColor(dataSet.barShadowColor.cgColor)
-                context.fill(_barShadowRectBuffer)
-            }
-        }
-        
-        let buffer = _buffers[index]
-        
-        let isSingleColor = dataSet.colors.count == 1
-        
-        if isSingleColor
-        {
-            context.setFillColor(dataSet.color(atIndex: 0).cgColor)
-        }
-        
-        for j in stride(from: 0, to: buffer.rects.count, by: 1)
-        {
-            let barRect = buffer.rects[j]
-            
-            if (!viewPortHandler.isInBoundsTop(barRect.origin.y + barRect.size.height))
-            {
-                break
-            }
-            
-            if (!viewPortHandler.isInBoundsBottom(barRect.origin.y))
-            {
-                continue
-            }
-            
-            if !isSingleColor
-            {
-                // Set the color for the currently drawn value. If the index is out of bounds, reuse colors.
-                context.setFillColor(dataSet.color(atIndex: j).cgColor)
-            }
-            
-            context.fill(barRect)
-            
-            if drawBorder
-            {
-                context.setStrokeColor(borderColor.cgColor)
-                context.setLineWidth(borderWidth)
-                context.stroke(barRect)
             }
         }
         
         context.restoreGState()
     }
     
-    open override func prepareBarHighlight(
-        x: Double,
-        y1: Double,
-        y2: Double,
-        barWidthHalf: Double,
-        trans: Transformer,
-        rect: inout CGRect)
+    open override func prepareBarHighlight(x: CGFloat, y1: Double, y2: Double, barspacehalf: CGFloat, trans: ChartTransformer, rect: inout CGRect)
     {
-        let top = x - barWidthHalf
-        let bottom = x + barWidthHalf
-        let left = y1
-        let right = y2
+        let barWidth: CGFloat = 0.5
         
-        rect.origin.x = CGFloat(left)
-        rect.origin.y = CGFloat(top)
-        rect.size.width = CGFloat(right - left)
-        rect.size.height = CGFloat(bottom - top)
+        let top = x - barWidth + barspacehalf
+        let bottom = x + barWidth - barspacehalf
+        let left = CGFloat(y1)
+        let right = CGFloat(y2)
+        
+        rect.origin.x = left
+        rect.origin.y = top
+        rect.size.width = right - left
+        rect.size.height = bottom - top
         
         trans.rectValueToPixelHorizontal(&rect, phaseY: animator?.phaseY ?? 1.0)
     }
@@ -299,85 +258,78 @@ open class HorizontalBarChartRenderer: BarChartRenderer
     open override func drawValues(context: CGContext)
     {
         // if values are drawn
-        if isDrawingValuesAllowed(dataProvider: dataProvider)
+        if (passesCheck())
         {
-            guard
-                let dataProvider = dataProvider,
-                let barData = dataProvider.barData,
-                let animator = animator,
-                let viewPortHandler = self.viewPortHandler
-                else { return }
+            guard let dataProvider = dataProvider,
+                  let barData = dataProvider.barData,
+                  let animator = animator
+            else { return }
             
             var dataSets = barData.dataSets
+            
+            let drawValueAboveBar = dataProvider.drawValueAboveBarEnabled
             
             let textAlign = NSTextAlignment.left
             
             let valueOffsetPlus: CGFloat = 5.0
             var posOffset: CGFloat
             var negOffset: CGFloat
-            let drawValueAboveBar = dataProvider.isDrawValueAboveBarEnabled
             
             for dataSetIndex in 0 ..< barData.dataSetCount
             {
                 guard let dataSet = dataSets[dataSetIndex] as? IBarChartDataSet else { continue }
                 
-                if !shouldDrawValues(forDataSet: dataSet)
+                if !dataSet.drawValuesEnabled || dataSet.entryCount == 0
                 {
                     continue
                 }
                 
-                let isInverted = dataProvider.isInverted(axis: dataSet.axisDependency)
+                let inverted = dataProvider.inverted(dataSet.axisDependency)
                 
                 let valueFont = dataSet.valueFont
                 let yOffset = -valueFont.lineHeight / 2.0
                 
                 guard let formatter = dataSet.valueFormatter else { continue }
                 
-                let trans = dataProvider.getTransformer(forAxis: dataSet.axisDependency)
+                let trans = dataProvider.getTransformer(dataSet.axisDependency)
                 
                 let phaseY = animator.phaseY
-                
-                let buffer = _buffers[dataSetIndex]
+                let dataSetCount = barData.dataSetCount
+                let groupSpace = barData.groupSpace
                 
                 // if only single values are drawn (sum)
-                if !dataSet.isStacked
+                if (!dataSet.isStacked)
                 {
-                    for j in 0 ..< Int(ceil(Double(dataSet.entryCount) * animator.phaseX))
+                    for j in 0 ..< Int(ceil(CGFloat(dataSet.entryCount) * animator.phaseX))
                     {
                         guard let e = dataSet.entryForIndex(j) as? BarChartDataEntry else { continue }
                         
-                        let rect = buffer.rects[j]
+                        let valuePoint = trans.getTransformedValueHorizontalBarChart(entry: e, xIndex: e.xIndex, dataSetIndex: dataSetIndex, phaseY: phaseY, dataSetCount: dataSetCount, groupSpace: groupSpace)
                         
-                        let y = rect.origin.y + rect.size.height / 2.0
-                        
-                        if !viewPortHandler.isInBoundsTop(rect.origin.y)
+                        if (!viewPortHandler.isInBoundsTop(valuePoint.y))
                         {
                             break
                         }
                         
-                        if !viewPortHandler.isInBoundsX(rect.origin.x)
+                        if (!viewPortHandler.isInBoundsX(valuePoint.x))
                         {
                             continue
                         }
                         
-                        if !viewPortHandler.isInBoundsBottom(rect.origin.y)
+                        if (!viewPortHandler.isInBoundsBottom(valuePoint.y))
                         {
                             continue
                         }
                         
-                        let val = e.y
-                        let valueText = formatter.stringForValue(
-                            val,
-                            entry: e,
-                            dataSetIndex: dataSetIndex,
-                            viewPortHandler: viewPortHandler)
+                        let val = e.value
+                        let valueText = formatter.string(from: val as NSNumber)!
                         
                         // calculate the correct offset depending on the draw position of the value
                         let valueTextWidth = valueText.size(attributes: [NSFontAttributeName: valueFont]).width
                         posOffset = (drawValueAboveBar ? valueOffsetPlus : -(valueTextWidth + valueOffsetPlus))
                         negOffset = (drawValueAboveBar ? -(valueTextWidth + valueOffsetPlus) : valueOffsetPlus)
                         
-                        if isInverted
+                        if (inverted)
                         {
                             posOffset = -posOffset - valueTextWidth
                             negOffset = -negOffset - valueTextWidth
@@ -386,9 +338,8 @@ open class HorizontalBarChartRenderer: BarChartRenderer
                         drawValue(
                             context: context,
                             value: valueText,
-                            xPos: (rect.origin.x + rect.size.width)
-                                + (val >= 0.0 ? posOffset : negOffset),
-                            yPos: y + yOffset,
+                            xPos: valuePoint.x + (val >= 0.0 ? posOffset : negOffset),
+                            yPos: valuePoint.y + yOffset,
                             font: valueFont,
                             align: textAlign,
                             color: dataSet.valueTextColorAt(j))
@@ -398,47 +349,41 @@ open class HorizontalBarChartRenderer: BarChartRenderer
                 {
                     // if each value of a potential stack should be drawn
                     
-                    var bufferIndex = 0
-                    
-                    for index in 0 ..< Int(ceil(Double(dataSet.entryCount) * animator.phaseX))
+                    for j in 0 ..< Int(ceil(CGFloat(dataSet.entryCount) * animator.phaseX))
                     {
-                        guard let e = dataSet.entryForIndex(index) as? BarChartDataEntry else { continue }
+                        guard let e = dataSet.entryForIndex(j) as? BarChartDataEntry else { continue }
                         
-                        let rect = buffer.rects[bufferIndex]
+                        let valuePoint = trans.getTransformedValueHorizontalBarChart(entry: e, xIndex: e.xIndex, dataSetIndex: dataSetIndex, phaseY: phaseY, dataSetCount: dataSetCount, groupSpace: groupSpace)
                         
-                        let vals = e.yValues
+                        let values = e.values
                         
                         // we still draw stacked bars, but there is one non-stacked in between
-                        if vals == nil
+                        if (values == nil)
                         {
-                            if !viewPortHandler.isInBoundsTop(rect.origin.y)
+                            if (!viewPortHandler.isInBoundsTop(valuePoint.y))
                             {
                                 break
                             }
                             
-                            if !viewPortHandler.isInBoundsX(rect.origin.x)
+                            if (!viewPortHandler.isInBoundsX(valuePoint.x))
                             {
                                 continue
                             }
                             
-                            if !viewPortHandler.isInBoundsBottom(rect.origin.y)
+                            if (!viewPortHandler.isInBoundsBottom(valuePoint.y))
                             {
                                 continue
                             }
                             
-                            let val = e.y
-                            let valueText = formatter.stringForValue(
-                                val,
-                                entry: e,
-                                dataSetIndex: dataSetIndex,
-                                viewPortHandler: viewPortHandler)
+                            let val = e.value
+                            let valueText = formatter.string(from: val as NSNumber)!
                             
                             // calculate the correct offset depending on the draw position of the value
                             let valueTextWidth = valueText.size(attributes: [NSFontAttributeName: valueFont]).width
                             posOffset = (drawValueAboveBar ? valueOffsetPlus : -(valueTextWidth + valueOffsetPlus))
                             negOffset = (drawValueAboveBar ? -(valueTextWidth + valueOffsetPlus) : valueOffsetPlus)
                             
-                            if isInverted
+                            if (inverted)
                             {
                                 posOffset = -posOffset - valueTextWidth
                                 negOffset = -negOffset - valueTextWidth
@@ -447,16 +392,15 @@ open class HorizontalBarChartRenderer: BarChartRenderer
                             drawValue(
                                 context: context,
                                 value: valueText,
-                                xPos: (rect.origin.x + rect.size.width)
-                                    + (val >= 0.0 ? posOffset : negOffset),
-                                yPos: rect.origin.y + yOffset,
+                                xPos: valuePoint.x + (val >= 0.0 ? posOffset : negOffset),
+                                yPos: valuePoint.y + yOffset,
                                 font: valueFont,
                                 align: textAlign,
-                                color: dataSet.valueTextColorAt(index))
+                                color: dataSet.valueTextColorAt(j))
                         }
                         else
                         {
-                            let vals = vals!
+                            let vals = values!
                             var transformed = [CGPoint]()
                             
                             var posY = 0.0
@@ -478,7 +422,7 @@ open class HorizontalBarChartRenderer: BarChartRenderer
                                     negY -= value
                                 }
                                 
-                                transformed.append(CGPoint(x: CGFloat(y * phaseY), y: 0.0))
+                                transformed.append(CGPoint(x: CGFloat(y) * animator.phaseY, y: 0.0))
                             }
                             
                             trans.pointValuesToPixel(&transformed)
@@ -486,25 +430,21 @@ open class HorizontalBarChartRenderer: BarChartRenderer
                             for k in 0 ..< transformed.count
                             {
                                 let val = vals[k]
-                                let valueText = formatter.stringForValue(
-                                    val,
-                                    entry: e,
-                                    dataSetIndex: dataSetIndex,
-                                    viewPortHandler: viewPortHandler)
+                                let valueText = formatter.string(from: val as NSNumber)!
                                 
                                 // calculate the correct offset depending on the draw position of the value
                                 let valueTextWidth = valueText.size(attributes: [NSFontAttributeName: valueFont]).width
                                 posOffset = (drawValueAboveBar ? valueOffsetPlus : -(valueTextWidth + valueOffsetPlus))
                                 negOffset = (drawValueAboveBar ? -(valueTextWidth + valueOffsetPlus) : valueOffsetPlus)
                                 
-                                if isInverted
+                                if (inverted)
                                 {
                                     posOffset = -posOffset - valueTextWidth
                                     negOffset = -negOffset - valueTextWidth
                                 }
                                 
                                 let x = transformed[k].x + (val >= 0 ? posOffset : negOffset)
-                                let y = rect.origin.y + rect.size.height / 2.0
+                                let y = valuePoint.y
                                 
                                 if (!viewPortHandler.isInBoundsTop(y))
                                 {
@@ -527,28 +467,19 @@ open class HorizontalBarChartRenderer: BarChartRenderer
                                     yPos: y + yOffset,
                                     font: valueFont,
                                     align: textAlign,
-                                    color: dataSet.valueTextColorAt(index))
+                                    color: dataSet.valueTextColorAt(j))
                             }
                         }
-                        
-                        bufferIndex = vals == nil ? (bufferIndex + 1) : (bufferIndex + vals!.count)
                     }
                 }
             }
         }
     }
     
-    open override func isDrawingValuesAllowed(dataProvider: ChartDataProvider?) -> Bool
+    internal override func passesCheck() -> Bool
     {
-        guard let data = dataProvider?.data
-            else { return false }
+        guard let dataProvider = dataProvider, let barData = dataProvider.barData else { return false }
         
-        return data.entryCount < Int(CGFloat(dataProvider?.maxVisibleCount ?? 0) * (viewPortHandler?.scaleY ?? 1.0))
-    }
-    
-    /// Sets the drawing position of the highlight object based on the riven bar-rect.
-    internal override func setHighlightDrawPos(highlight high: Highlight, barRect: CGRect)
-    {
-        high.setDraw(x: barRect.midY, y: barRect.origin.x + barRect.size.width)
+        return CGFloat(barData.yValCount) < CGFloat(dataProvider.maxVisibleValueCount) * viewPortHandler.scaleY
     }
 }

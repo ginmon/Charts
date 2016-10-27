@@ -2,6 +2,8 @@
 //  RadarChartData.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 26/2/15.
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -20,27 +22,18 @@ open class RadarChartData: ChartData
     open var highlightLineDashPhase = CGFloat(0.0)
     open var highlightLineDashLengths: [CGFloat]?
     
-    /// Sets labels that should be drawn around the RadarChart at the end of each web line.
-    open var labels = [String]()
-    
-    /// Sets the labels that should be drawn around the RadarChart at the end of each web line.
-    open func setLabels(_ labels: String...)
-    {
-        self.labels = labels
-    }
-    
     public override init()
     {
         super.init()
     }
     
-    public override init(dataSets: [IChartDataSet]?)
+    public override init(xVals: [String?]?, dataSets: [IChartDataSet]?)
     {
-        super.init(dataSets: dataSets)
+        super.init(xVals: xVals, dataSets: dataSets)
     }
     
-    open override func entryForHighlight(_ highlight: Highlight) -> ChartDataEntry?
+    public override init(xVals: [NSObject]?, dataSets: [IChartDataSet]?)
     {
-        return getDataSetByIndex(highlight.dataSetIndex)?.entryForIndex(Int(highlight.x))
+        super.init(xVals: xVals, dataSets: dataSets)
     }
 }

@@ -2,6 +2,9 @@
 //  ChartColorTemplates.swift
 //  Charts
 //
+//  Created by Daniel Cohen Gindi on 23/2/15.
+
+//
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
 //  A port of MPAndroidChart for iOS
 //  Licensed under Apache License 2.0
@@ -99,7 +102,7 @@ open class ChartColorTemplates: NSObject
             var index = colorString.startIndex
             let endIndex = colorString.endIndex
             
-            index = colorString.index(after: index)
+            index = colorString.index(index, offsetBy: 1)
             length = length - 1
             
             if length == 3 || length == 6 || length == 8
@@ -108,7 +111,7 @@ open class ChartColorTemplates: NSObject
                 while index < endIndex
                 {
                     var c = colorString[index]
-                    index = colorString.index(after: index)
+                    index = colorString.index(index, offsetBy: 1)
                     
                     var val = (c.value >= 0x61 && c.value <= 0x66) ? (c.value - 0x61 + 10) : c.value - 0x30
                     argb[i] = UInt(val) * 16
@@ -119,7 +122,7 @@ open class ChartColorTemplates: NSObject
                     else
                     {
                         c = colorString[index]
-                        index = colorString.index(after: index)
+                        index = colorString.index(index, offsetBy: 1)
                         
                         val = (c.value >= 0x61 && c.value <= 0x66) ? (c.value - 0x61 + 10) : c.value - 0x30
                         argb[i] = argb[i] + UInt(val)
