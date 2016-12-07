@@ -377,21 +377,20 @@ open class LineChartRenderer: LineRadarChartRenderer
         spline.addLine(to: CGPoint(x: pt1.x, y: pt1.y))
         spline.addLine(to: CGPoint(x: pt2.x, y: pt2.y))
         spline.closeSubpath()
-        
-        if dataSet.fill != nil
-        {
-            drawFilledPath(context: context, path: spline, fill: dataSet.fill!, fillAlpha: dataSet.fillAlpha)
-        }
-        else
-        {
-            print("test")
-            print(dataSet.entryForXIndex(from + 1)!.value)
-            if(dataSet.entryForXIndex(from + 1)!.value < 0) {
-                drawFilledPath(context: context, path: spline, fillColor: UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1), fillAlpha: dataSet.fillAlpha)
+
+
+        if(dataSet.entryForXIndex(from + 1)!.value < 0) {
+            if(dataSet.fillUnderColor != nil) {
+                drawFilledPath(context: context, path: spline, fillColor: dataSet.fillUnderColor, fillAlpha: dataSet.fillAlpha)
             } else {
-                drawFilledPath(context: context, path: spline, fillColor: dataSet.fillColor, fillAlpha: dataSet.fillAlpha)
+                drawFilledPath(context: context, path: spline, fillColor: UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1), fillAlpha: dataSet.fillAlpha)
             }
-            
+        } else {
+            if(dataSet.fillColor != nil) {
+                drawFilledPath(context: context, path: spline, fillColor: dataSet.fillColor, fillAlpha: dataSet.fillAlpha)
+            } else {
+                drawFilledPath(context: context, path: spline, fillColor: UIColor(red: 0.1, green: 0.1, blue: 0.5, alpha: 1), fillAlpha: dataSet.fillAlpha)
+            }
         }
     }
     
